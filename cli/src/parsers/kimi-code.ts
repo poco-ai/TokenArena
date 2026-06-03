@@ -203,7 +203,7 @@ export class KimiCodeParser implements IParser {
 
       const sessionId = filePath;
       const project = projectMap.get(workDirHash) || workDirHash;
-      let currentModel = "unknown";
+      let currentModel = "kimi-for-coding";
       let lastTimestampRaw: string | number | undefined;
 
       let fileMtime: Date | null = null;
