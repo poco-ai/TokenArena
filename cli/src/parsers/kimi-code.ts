@@ -1,4 +1,5 @@
-import { existsSync, readdirSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { aggregateToBuckets } from "../domain/aggregator";
@@ -143,6 +144,7 @@ function loadProjectMap(configPath: string): Map<string, string> {
     const config = JSON.parse(content) as {
       workspaces?: Record<string, string | { path?: string; dir?: string }>;
       projects?: Record<string, string | { path?: string; dir?: string }>;
+      work_dirs?: Array<{ path?: string }>;
     };
 
     const workspaces = config.workspaces || config.projects || {};
@@ -152,6 +154,19 @@ function loadProjectMap(configPath: string): Map<string, string> {
       if (!pathValue) continue;
 
       projectMap.set(hash, getPathLeaf(pathValue));
+    }
+
+    if (config.work_dirs) {
+      for (const entry of config.work_dirs) {
+        if (!entry.path) continue;
+        const leaf = getPathLeaf(entry.path);
+        if (leaf === "unknown") continue;
+
+        const hash = createHash("md5").update(entry.path).digest("hex");
+        if (!projectMap.has(hash)) {
+          projectMap.set(hash, leaf);
+        }
+      }
     }
   } catch {
     // Ignore unreadable config and fall back to work-dir hashes.
@@ -191,6 +206,13 @@ export class KimiCodeParser implements IParser {
       let currentModel = "unknown";
       let lastTimestampRaw: string | number | undefined;
 
+      let fileMtime: Date | null = null;
+      try {
+        fileMtime = statSync(filePath).mtime;
+      } catch {
+        // Ignore stat errors.
+      }
+
       for (const line of content.split("\n")) {
         if (!line.trim()) continue;
 
@@ -214,7 +236,7 @@ export class KimiCodeParser implements IParser {
 
         const timestampValue =
           payload.timestamp ?? obj.timestamp ?? lastTimestampRaw;
-        const timestamp = parseTimestamp(timestampValue);
+        const timestamp = parseTimestamp(timestampValue) ?? fileMtime;
         if (payload.timestamp != null) {
           lastTimestampRaw = payload.timestamp;
         } else if (obj.timestamp != null) {
