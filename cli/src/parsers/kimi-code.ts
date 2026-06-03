@@ -45,6 +45,7 @@ interface KimiEvent {
   type?: string;
   timestamp?: string | number;
   payload?: KimiPayload;
+  message?: KimiEvent;
 }
 
 export interface KimiCodeParserOptions {
@@ -198,6 +199,10 @@ export class KimiCodeParser implements IParser {
           obj = JSON.parse(line) as KimiEvent;
         } catch {
           continue;
+        }
+
+        if (obj.message) {
+          obj = obj.message;
         }
 
         const payload = obj.payload;

@@ -94,4 +94,55 @@ describe("KimiCodeParser", () => {
       primaryModel: "kimi-k2.5",
     });
   });
+
+  it("parses wire logs with message wrapper (new Kimi format)", async () => {
+    const rootDir = makeTempDir("tokenarena-kimi-wrap-");
+    const sessionsDir = join(rootDir, "sessions");
+    const wireDir = join(sessionsDir, "workspace-hash", "session-1");
+    mkdirSync(wireDir, { recursive: true });
+
+    writeFileSync(
+      join(wireDir, "wire.jsonl"),
+      [
+        JSON.stringify({
+          message: {
+            type: "UserMessage",
+            payload: {
+              timestamp: "2026-03-26T10:00:00.000Z",
+            },
+          },
+        }),
+        JSON.stringify({
+          message: {
+            type: "StatusUpdate",
+            payload: {
+              timestamp: "2026-03-26T10:00:03.000Z",
+              model: "kimi-k2.5",
+              message_id: "msg-1",
+              token_usage: {
+                input_other: 200,
+                output: 80,
+                input_cache_read: 50,
+                input_cache_creation: 10,
+              },
+            },
+          },
+        }),
+      ].join("\n"),
+      "utf-8",
+    );
+
+    const parser = new KimiCodeParser({ sessionsDir });
+    const result = await parser.parse();
+
+    expect(result.buckets).toHaveLength(1);
+    expect(result.buckets[0]).toMatchObject({
+      source: "kimi-code",
+      model: "kimi-k2.5",
+      inputTokens: 200,
+      outputTokens: 80,
+      cachedTokens: 50,
+      totalTokens: 330,
+    });
+  });
 });
