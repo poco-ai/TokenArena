@@ -17,6 +17,7 @@ import "./parsers/cline.js";
 import "./parsers/kiro.js";
 import "./parsers/roo-code.js";
 import "./parsers/cursor.js";
+import "./parsers/workbuddy.js";
 
 import { createCli } from "./cli.js";
 import { isMainModule } from "./infrastructure/runtime/main-module.js";
