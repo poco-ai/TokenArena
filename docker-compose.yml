@@ -1,6 +1,8 @@
 services:
   web:
-    image: ghcr.io/poco-ai/tokenarena:latest
+    build:
+      context: .
+      dockerfile: web/Dockerfile
     ports:
       - "3000:3000"
     environment:
