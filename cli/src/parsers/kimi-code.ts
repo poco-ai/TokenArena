@@ -15,8 +15,9 @@ import type { IParser, ToolDefinition } from "./types";
 
 const TOOL_ID = "kimi-code";
 const TOOL_NAME = "Kimi Code";
-const DEFAULT_SESSIONS_DIR = join(homedir(), ".kimi", "sessions");
-const DEFAULT_CONFIG_PATH = join(homedir(), ".kimi", "kimi.json");
+const OLD_SESSIONS_DIR = join(homedir(), ".kimi", "sessions");
+const NEW_SESSIONS_DIR = join(homedir(), ".kimi-code", "sessions");
+const OLD_CONFIG_PATH = join(homedir(), ".kimi", "kimi.json");
 
 const USER_EVENT_TYPES = new Set(["UserMessage", "user_message", "Input"]);
 const ASSISTANT_EVENT_TYPES = new Set([
@@ -49,8 +50,22 @@ interface KimiEvent {
   message?: KimiEvent;
 }
 
+interface NewKimiUsageRecord {
+  type: "usage.record";
+  model?: string;
+  usage?: {
+    inputOther?: unknown;
+    output?: unknown;
+    inputCacheRead?: unknown;
+    inputCacheCreation?: unknown;
+  };
+  usageScope?: string;
+  time?: number;
+}
+
 export interface KimiCodeParserOptions {
   sessionsDir?: string;
+  newSessionsDir?: string;
   configPath?: string;
 }
 
@@ -97,6 +112,52 @@ function findWireFiles(
         }
       } catch {
         // Ignore unreadable session directories and keep scanning.
+      }
+    }
+  } catch {
+    return results;
+  }
+
+  return results;
+}
+
+function extractProjectFromDirName(dirName: string): string {
+  // wd_<projectName>_<hash> -> projectName
+  const match = dirName.match(/^wd_(.+)_[a-f0-9]+$/);
+  return match ? match[1] : dirName;
+}
+
+function findNewWireFiles(
+  baseDir: string,
+): Array<{ filePath: string; projectName: string }> {
+  const results: Array<{ filePath: string; projectName: string }> = [];
+  if (!existsSync(baseDir)) return results;
+
+  try {
+    for (const workDir of readdirSync(baseDir, { withFileTypes: true })) {
+      if (!workDir.isDirectory()) continue;
+
+      const projectName = extractProjectFromDirName(workDir.name);
+      const workDirPath = join(baseDir, workDir.name);
+      try {
+        for (const session of readdirSync(workDirPath, {
+          withFileTypes: true,
+        })) {
+          if (!session.isDirectory()) continue;
+
+          const wireFile = join(
+            workDirPath,
+            session.name,
+            "agents",
+            "main",
+            "wire.jsonl",
+          );
+          if (existsSync(wireFile)) {
+            results.push({ filePath: wireFile, projectName });
+          }
+        }
+      } catch {
+        // Ignore unreadable session directories.
       }
     }
   } catch {
@@ -177,18 +238,22 @@ function loadProjectMap(configPath: string): Map<string, string> {
 
 export class KimiCodeParser implements IParser {
   readonly tool: ToolDefinition;
-  private readonly sessionsDir: string;
+  private readonly oldSessionsDir: string;
+  private readonly newSessionsDir: string;
   private readonly configPath: string;
 
   constructor(options: KimiCodeParserOptions = {}) {
-    this.sessionsDir = options.sessionsDir || DEFAULT_SESSIONS_DIR;
-    this.configPath = options.configPath || DEFAULT_CONFIG_PATH;
-    this.tool = createToolDefinition(this.sessionsDir);
+    this.oldSessionsDir = options.sessionsDir || OLD_SESSIONS_DIR;
+    this.newSessionsDir = options.newSessionsDir || NEW_SESSIONS_DIR;
+    this.configPath = options.configPath || OLD_CONFIG_PATH;
+    this.tool = createToolDefinition(this.oldSessionsDir);
   }
 
   async parse(): Promise<ParseResult> {
-    const wireFiles = findWireFiles(this.sessionsDir);
-    if (wireFiles.length === 0) {
+    const oldWireFiles = findWireFiles(this.oldSessionsDir);
+    const newWireFiles = findNewWireFiles(this.newSessionsDir);
+
+    if (oldWireFiles.length === 0 && newWireFiles.length === 0) {
       return { buckets: [], sessions: [] };
     }
 
@@ -197,7 +262,8 @@ export class KimiCodeParser implements IParser {
     const sessionEvents: SessionEvent[] = [];
     const seenMessageIds = new Set<string>();
 
-    for (const { filePath, workDirHash } of wireFiles) {
+    // Parse old format: ~/.kimi/sessions/<hash>/<sessionId>/wire.jsonl
+    for (const { filePath, workDirHash } of oldWireFiles) {
       const content = readFileSafe(filePath);
       if (!content) continue;
 
@@ -302,6 +368,66 @@ export class KimiCodeParser implements IParser {
       }
     }
 
+    // Parse new format: ~/.kimi-code/sessions/wd_<name>_<hash>/<sessionId>/agents/main/wire.jsonl
+    for (const { filePath, projectName } of newWireFiles) {
+      const content = readFileSafe(filePath);
+      if (!content) continue;
+
+      const sessionId = filePath;
+
+      for (const line of content.split("\n")) {
+        if (!line.trim()) continue;
+
+        let obj: NewKimiUsageRecord;
+        try {
+          obj = JSON.parse(line) as NewKimiUsageRecord;
+        } catch {
+          continue;
+        }
+
+        if (obj.type !== "usage.record") continue;
+        if (obj.usageScope === "session") continue;
+
+        const usage = obj.usage;
+        if (!usage) continue;
+
+        const timestamp = obj.time ? new Date(obj.time) : null;
+        if (!timestamp || Number.isNaN(timestamp.getTime())) continue;
+
+        const inputTokens = toSafeNumber(usage.inputOther);
+        const outputTokens = toSafeNumber(usage.output);
+        const cachedTokens = toSafeNumber(usage.inputCacheRead);
+
+        if (inputTokens === 0 && outputTokens === 0 && cachedTokens === 0) {
+          continue;
+        }
+
+        // Extract model name, strip "kimi-code/" prefix if present
+        const rawModel = obj.model || "kimi-for-coding";
+        const model = rawModel.replace(/^kimi-code\//, "");
+
+        sessionEvents.push({
+          sessionId,
+          source: TOOL_ID,
+          project: projectName,
+          timestamp,
+          role: "assistant",
+        });
+
+        entries.push({
+          sessionId,
+          source: TOOL_ID,
+          model,
+          project: projectName,
+          timestamp,
+          inputTokens,
+          outputTokens,
+          reasoningTokens: 0,
+          cachedTokens,
+        });
+      }
+    }
+
     return {
       buckets: aggregateToBuckets(entries),
       sessions: extractSessions(sessionEvents, entries),
@@ -309,7 +435,7 @@ export class KimiCodeParser implements IParser {
   }
 
   isInstalled(): boolean {
-    return existsSync(this.sessionsDir);
+    return existsSync(this.oldSessionsDir) || existsSync(this.newSessionsDir);
   }
 }
 
