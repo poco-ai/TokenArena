@@ -1,5 +1,7 @@
+# syntax=docker/dockerfile:1
+
 # Stage 1: Install dependencies
-FROM gh-proxy.org/docker/library/node:26-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /app
 
 # Install pnpm (pinned to match dev environment)
@@ -15,7 +17,7 @@ RUN printf 'onlyBuiltDependencies[]=@parcel/watcher\nonlyBuiltDependencies[]=@pr
     && pnpm install --filter ./web --frozen-lockfile
 
 # Stage 2: Build the application
-FROM gh-proxy.org/docker/library/node:26-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /app
 
 RUN npm install -g pnpm@10.32.1
@@ -40,7 +42,7 @@ WORKDIR /app/web
 RUN pnpm build
 
 # Stage 3: Production runner
-FROM gh-proxy.org/docker/library/node:26-alpine AS runner
+FROM node:26-alpine AS runner
 WORKDIR /app
 
 ARG NEXT_PUBLIC_APP_VERSION=dev
