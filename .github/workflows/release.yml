@@ -176,6 +176,20 @@ jobs:
           RELEASE_VERSION: ${{ needs.release.outputs.version }}
         run: |
           set -euo pipefail
+          if [ -z "$RELEASE_VERSION" ]; then
+            fallback=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+            if [ -n "$fallback" ]; then
+              echo "Using fallback tag from git: $fallback"
+              RELEASE_VERSION="${fallback#v}"
+              RELEASE_TAG="$fallback"
+              export RELEASE_TAG RELEASE_VERSION
+            else
+              version=$(node -e "console.log(require('./cli/package.json').version)")
+              RELEASE_TAG="v${version}"
+              RELEASE_VERSION="$version"
+              export RELEASE_TAG RELEASE_VERSION
+            fi
+          fi
           test "$RELEASE_TAG" = "v$RELEASE_VERSION"
 
       - name: Set up QEMU
