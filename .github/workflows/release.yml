@@ -118,18 +118,21 @@ jobs:
         env:
           RELEASE_VERSION: ${{ needs.release.outputs.version }}
         run: |
+          set -eux
           pack_dir="${RUNNER_TEMP}/tokenarena-release"
           mkdir -p "$pack_dir"
           pnpm --filter ./cli pack --pack-destination "$pack_dir"
           tarball="$(find "$pack_dir" -name '*.tgz' -print -quit)"
           test -n "$tarball"
-          # CLI tarball sanity check: must contain dist/index.js and stay under 1 MB
           size=$(stat -c%s "$tarball" 2>/dev/null || stat -f%z "$tarball")
-          test "$size" -lt 1048576 \
-            || { echo "::error::Tarball exceeds 1 MB — likely a monorepo pack, not CLI"; exit 1; }
-          tar -tzf "$tarball" | grep -q '^package/dist/index\.js$' \
-            || { echo "::error::Tarball missing package/dist/index.js — not a valid CLI pack"; exit 1; }
-          # Determine version for asset name (fall back to latest tag)
+          if [ "$size" -ge 1048576 ]; then
+            echo "::error::Tarball exceeds 1 MB — likely a monorepo pack, not CLI"
+            exit 1
+          fi
+          if ! tar -tzf "$tarball" | grep -q '^package/dist/index\.js$'; then
+            echo "::error::Tarball missing package/dist/index.js — not a valid CLI pack"
+            exit 1
+          fi
           version="${RELEASE_VERSION:-}"
           if [ -z "$version" ]; then
             tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
