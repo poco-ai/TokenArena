@@ -1,6 +1,6 @@
 {
   "name": "@ihadu/tokenarena",
-  "version": "0.5.1",
+  "version": "0.5.3",
   "type": "module",
   "description": "Collect and sync local AI coding CLI usage data",
   "license": "MIT",
@@ -10,8 +10,7 @@
   },
   "homepage": "https://github.com/ihadu/TokenArena",
   "publishConfig": {
-    "registry": "https://registry.npmjs.org",
-    "access": "public"
+    "registry": "https://npm.pkg.github.com"
   },
   "bin": {
     "tokenarena": "dist/index.js"

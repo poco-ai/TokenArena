@@ -1,8 +1,15 @@
-# 公共 npm 包无需特殊配置
-# 直接安装即可：
-#   npm install -g @ihadu/tokenarena
-#   pnpm add -g @ihadu/tokenarena
+# GitHub Packages 安装配置
+# 1. 复制此文件为 ~/.npmrc（全局）或项目根目录的 .npmrc
+# 2. 把 ${GITHUB_TOKEN} 替换为你的 GitHub Personal Access Token
+#    Token 需 read:packages 权限（团队成员即可）
+# 3. 安装包：
+#    npm install -g @ihadu/tokenarena
+#    pnpm add -g @ihadu/tokenarena
 #
-# 仅维护者发布时需要登录 npm：
-#   npm login   # 登录有 @ihadu org 发布权限的账号
-#   pnpm --filter ./cli publish --access public
+# 获取 PAT: https://github.com/settings/tokens
+#   - 选 "Generate new token" → "Generate new token (classic)"
+#   - Scopes 勾选 "read:packages"
+#   - 也可以用环境变量: export GITHUB_TOKEN=ghp_xxx
+
+@ihadu:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}

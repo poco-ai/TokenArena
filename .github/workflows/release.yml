@@ -47,7 +47,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          registry-url: https://registry.npmjs.org
+          registry-url: https://npm.pkg.github.com
           cache: pnpm
 
       - name: Install dependencies
@@ -102,10 +102,10 @@ jobs:
           ./node_modules/.bin/tokenarena --help
           ./node_modules/.bin/tokenarena status
 
-      - name: Publish CLI to npm
-        run: pnpm --filter ./cli publish --no-git-checks --access public
+      - name: Publish CLI to GitHub Packages
+        run: pnpm --filter ./cli publish --no-git-checks
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   publish-web:
     runs-on: ubuntu-latest

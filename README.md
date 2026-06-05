@@ -31,7 +31,7 @@
 2. **创建 API Key** — 在 [Settings](https://token.poco-ai.com/zh/settings/cli-keys) 中生成 API key
 3. **下载**
     ```shell
-    npm install -g @poco-ai/tokenarena
+    npm install -g @ihadu/tokenarena
     ```
 4. **初始化 CLI** — 运行 `tokenarena init`，输入 API key
 5. **查看分析** — 打开 [Usage](https://token.poco-ai.com/zh/usage) 页面查看你的 token 用量分析
