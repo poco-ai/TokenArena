@@ -110,7 +110,15 @@ jobs:
           pnpm --filter ./cli pack --pack-destination "$pack_dir"
           tarball="$(find "$pack_dir" -name '*.tgz' -print -quit)"
           test -n "$tarball"
-          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+          # CLI tarball sanity check: must contain dist/index.js and stay under 1 MB
+          test "$(stat -c%s "$tarball" 2>/dev/null || stat -f%z "$tarball")" -lt 1048576 \
+            || { echo "::error::Tarball exceeds 1 MB — likely a monorepo pack, not CLI"; exit 1; }
+          tar -tzf "$tarball" | grep -q '^package/dist/index\.js$' \
+            || { echo "::error::Tarball missing package/dist/index.js — not a valid CLI pack"; exit 1; }
+          asset_name="tokenarena-cli-v${{ needs.release.outputs.version }}.tgz"
+          cp "$tarball" "$pack_dir/$asset_name"
+          echo "tarball=$pack_dir/$asset_name" >> "$GITHUB_OUTPUT"
+          echo "asset_name=$asset_name" >> "$GITHUB_OUTPUT"
 
       - name: Publish CLI to GitHub Packages
         run: pnpm --filter ./cli publish --no-git-checks
