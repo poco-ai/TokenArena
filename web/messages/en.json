@@ -175,8 +175,7 @@
     },
     "emptyState": {
       "title": "No usage data yet",
-      "step2": "Install the CLI globally:",
-      "step2Or": "Or install offline (no GitHub account required):",
+      "step2": "Download and install the CLI (no GitHub account required):",
       "copyCommand": "Copy command",
       "step3": "Run the command below in your CLI and paste your API key when prompted:",
       "createFirstKey": "Create your first key"
