@@ -156,23 +156,7 @@ jobs:
           TAR: ${{ steps.pack-release.outputs.tarball }}
         run: |
           set -eux
-          # Look up the release by tag
-          release_json=$(curl -fsSL \
-            -H "Authorization: token $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG")
-          upload_url=$(echo "$release_json" | node -e "
-            let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{
-              const j=JSON.parse(d);
-              console.log(j.upload_url.replace('{?name,label}',''));
-            });")
-          asset_name=$(basename "$TAR")
-          curl -fsSL -X POST \
-            -H "Authorization: token $GH_TOKEN" \
-            -H "Content-Type: application/gzip" \
-            --data-binary "@$TAR" \
-            "$upload_url?name=$asset_name"
-          echo "::notice::Uploaded $asset_name to release $TAG"
+          gh release upload "$TAG" "$TAR" --clobber --repo "${{ github.repository }}"
 
   publish-web:
     runs-on: ubuntu-latest
