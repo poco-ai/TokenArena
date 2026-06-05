@@ -102,10 +102,27 @@ jobs:
           ./node_modules/.bin/tokenarena --help
           ./node_modules/.bin/tokenarena status
 
+      - name: Pack release tarball
+        id: pack-release
+        run: |
+          pack_dir="${RUNNER_TEMP}/tokenarena-release"
+          mkdir -p "$pack_dir"
+          pnpm --filter ./cli pack --pack-destination "$pack_dir"
+          tarball="$(find "$pack_dir" -name '*.tgz' -print -quit)"
+          test -n "$tarball"
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+
       - name: Publish CLI to GitHub Packages
         run: pnpm --filter ./cli publish --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload tarball to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.release.outputs.tag_name }}
+          files: ${{ steps.pack-release.outputs.tarball }}
+          fail_on_unmatched_files: true
 
   publish-web:
     runs-on: ubuntu-latest
