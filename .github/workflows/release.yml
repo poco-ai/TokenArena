@@ -205,8 +205,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata for Docker
-        id: meta
+      - name: Resolve release tag
+        id: resolve-tag
         env:
           RELEASE_TAG: ${{ needs.release.outputs.tag_name }}
         run: |
@@ -220,9 +220,18 @@ jobs:
             fi
             tag="$fallback"
           fi
-          echo "tags=${tag}" >> "$GITHUB_OUTPUT"
-          echo "labels=org.opencontainers.image.version=${tag#v}" >> "$GITHUB_OUTPUT"
-          echo "build_arg_version=${tag#v}" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ steps.resolve-tag.outputs.tag }}
+            type=sha,prefix=
+            type=raw,value=latest
 
       - name: Build and push Web Docker image
         id: build-web
@@ -232,11 +241,10 @@ jobs:
           file: ./web/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          pull: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            NEXT_PUBLIC_APP_VERSION=${{ steps.meta.outputs.build_arg_version }}
+            NEXT_PUBLIC_APP_VERSION=${{ steps.resolve-tag.outputs.version }}
           cache-from: type=gha,scope=tokenarena-web
           cache-to: type=gha,mode=max,scope=tokenarena-web
 
