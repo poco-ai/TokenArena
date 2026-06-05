@@ -117,6 +117,7 @@ jobs:
         id: pack-release
         env:
           RELEASE_VERSION: ${{ needs.release.outputs.version }}
+          RELEASE_TAG: ${{ needs.release.outputs.tag_name }}
         run: |
           set -eux
           pack_dir="${RUNNER_TEMP}/tokenarena-release"
@@ -124,10 +125,23 @@ jobs:
           pnpm --filter ./cli pack --pack-destination "$pack_dir"
           tarball="$(find "$pack_dir" -name '*.tgz' -print -quit)"
           test -n "$tarball"
-          version="${RELEASE_VERSION:-$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')}"
+          tag="${RELEASE_TAG:-}"
+          version="${RELEASE_VERSION:-}"
+          if [ -z "$tag" ] || [ -z "$version" ]; then
+            fallback=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+            if [ -n "$fallback" ]; then
+              tag="${tag:-$fallback}"
+              version="${version:-${fallback#v}}"
+            fi
+          fi
+          if [ -z "$tag" ] || [ -z "$version" ]; then
+            echo "::error::Cannot determine release tag/version"
+            exit 1
+          fi
           asset_name="tokenarena-cli-v${version}.tgz"
           cp "$tarball" "$pack_dir/$asset_name"
           echo "tarball=$pack_dir/$asset_name" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Publish CLI to GitHub Packages
         env:
@@ -143,7 +157,7 @@ jobs:
       - name: Upload tarball to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.release.outputs.tag_name }}
+          tag_name: ${{ steps.pack-release.outputs.tag }}
           files: ${{ steps.pack-release.outputs.tarball }}
           fail_on_unmatched_files: true
 
