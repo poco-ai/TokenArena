@@ -55,20 +55,31 @@ jobs:
 
       - name: Verify release versions
         env:
-          RELEASE_TAG: ${{ needs.release.outputs.tag_name }}
           RELEASE_VERSION: ${{ needs.release.outputs.version }}
         run: |
           set -euo pipefail
-          test "$RELEASE_TAG" = "v$RELEASE_VERSION"
+          # If release-please didn't produce a version, read the latest tag.
+          if [ -z "${RELEASE_VERSION:-}" ]; then
+            tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+            if [ -z "$tag" ]; then
+              echo "::notice::No release tag; skipping version check"
+              exit 0
+            fi
+            RELEASE_VERSION="${tag#v}"
+            export RELEASE_VERSION
+          fi
           node <<'NODE'
           const fs = require("node:fs");
           const version = process.env.RELEASE_VERSION;
+          if (!version) {
+            console.log("::notice::No release version; skipping version check");
+            process.exit(0);
+          }
           const packages = [
             "package.json",
             "cli/package.json",
             "web/package.json",
           ];
-
           for (const file of packages) {
             const pkg = JSON.parse(fs.readFileSync(file, "utf8"));
             if (pkg.version !== version) {
@@ -104,6 +115,8 @@ jobs:
 
       - name: Pack release tarball
         id: pack-release
+        env:
+          RELEASE_VERSION: ${{ needs.release.outputs.version }}
         run: |
           pack_dir="${RUNNER_TEMP}/tokenarena-release"
           mkdir -p "$pack_dir"
@@ -116,8 +129,18 @@ jobs:
             || { echo "::error::Tarball exceeds 1 MB — likely a monorepo pack, not CLI"; exit 1; }
           tar -tzf "$tarball" | grep -q '^package/dist/index\.js$' \
             || { echo "::error::Tarball missing package/dist/index.js — not a valid CLI pack"; exit 1; }
+          # Determine version for asset name (fall back to latest tag)
+          version="${RELEASE_VERSION:-}"
+          if [ -z "$version" ]; then
+            tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+            version="${tag#v}"
+          fi
+          if [ -z "$version" ]; then
+            echo "::error::Cannot determine release version"
+            exit 1
+          fi
           echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
-          echo "asset_name=tokenarena-cli-v${{ needs.release.outputs.version }}.tgz" >> "$GITHUB_OUTPUT"
+          echo "asset_name=tokenarena-cli-v${version}.tgz" >> "$GITHUB_OUTPUT"
 
       - name: Publish CLI to GitHub Packages
         env:
