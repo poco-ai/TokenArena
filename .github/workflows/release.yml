@@ -127,16 +127,11 @@ jobs:
           test -n "$tarball"
           tag="${RELEASE_TAG:-}"
           version="${RELEASE_VERSION:-}"
-          if [ -z "$tag" ] || [ -z "$version" ]; then
-            fallback=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-            if [ -n "$fallback" ]; then
-              tag="${tag:-$fallback}"
-              version="${version:-${fallback#v}}"
-            fi
+          if [ -z "$version" ]; then
+            version=$(node -e "console.log(require('./cli/package.json').version)")
           fi
-          if [ -z "$tag" ] || [ -z "$version" ]; then
-            echo "::error::Cannot determine release tag/version"
-            exit 1
+          if [ -z "$tag" ]; then
+            tag="v${version}"
           fi
           asset_name="tokenarena-cli-v${version}.tgz"
           cp "$tarball" "$pack_dir/$asset_name"
