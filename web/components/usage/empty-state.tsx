@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   USAGE_EMPTY_INIT_COMMAND,
   USAGE_EMPTY_INSTALL_COMMAND,
+  USAGE_EMPTY_INSTALL_OFFLINE_COMMAND,
 } from "@/lib/usage/usage-empty-guide";
 
 import { UsageEmptyCopyableCommand } from "./usage-empty-copyable-command";
@@ -33,6 +34,12 @@ export async function EmptyState({ step1Action }: EmptyStateProps) {
             <br />
           </li>
           <UsageEmptyCopyableCommand command={USAGE_EMPTY_INSTALL_COMMAND} />
+          <div className="pl-2 pt-1 text-xs text-muted-foreground/80">
+            {t("step2Or")}
+          </div>
+          <UsageEmptyCopyableCommand
+            command={USAGE_EMPTY_INSTALL_OFFLINE_COMMAND}
+          />
 
           {/* step3 */}
           <li className="space-y-2">
