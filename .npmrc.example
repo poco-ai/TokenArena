@@ -1,0 +1,8 @@
+# 公共 npm 包无需特殊配置
+# 直接安装即可：
+#   npm install -g @ihadu/tokenarena
+#   pnpm add -g @ihadu/tokenarena
+#
+# 仅维护者发布时需要登录 npm：
+#   npm login   # 登录有 @ihadu org 发布权限的账号
+#   pnpm --filter ./cli publish --access public

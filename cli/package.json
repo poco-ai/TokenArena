@@ -1,15 +1,16 @@
 {
-  "name": "@poco-ai/tokenarena",
-  "version": "0.5.0",
+  "name": "@ihadu/tokenarena",
+  "version": "0.5.1",
   "type": "module",
   "description": "Collect and sync local AI coding CLI usage data",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/poco-ai/tokenarena.git"
+    "url": "git+https://github.com/ihadu/TokenArena.git"
   },
-  "homepage": "https://github.com/poco-ai/tokenarena",
+  "homepage": "https://github.com/ihadu/TokenArena",
   "publishConfig": {
+    "registry": "https://registry.npmjs.org",
     "access": "public"
   },
   "bin": {
