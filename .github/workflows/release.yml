@@ -124,9 +124,10 @@ jobs:
           pnpm --filter ./cli pack --pack-destination "$pack_dir"
           tarball="$(find "$pack_dir" -name '*.tgz' -print -quit)"
           test -n "$tarball"
-          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
           version="${RELEASE_VERSION:-$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')}"
-          echo "asset_name=tokenarena-cli-v${version}.tgz" >> "$GITHUB_OUTPUT"
+          asset_name="tokenarena-cli-v${version}.tgz"
+          cp "$tarball" "$pack_dir/$asset_name"
+          echo "tarball=$pack_dir/$asset_name" >> "$GITHUB_OUTPUT"
 
       - name: Publish CLI to GitHub Packages
         env:
@@ -143,7 +144,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.release.outputs.tag_name }}
-          files: ${{ steps.pack-release.outputs.tarball }}|${{ steps.pack-release.outputs.asset_name }}
+          files: ${{ steps.pack-release.outputs.tarball }}
           fail_on_unmatched_files: true
 
   publish-web:
