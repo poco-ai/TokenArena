@@ -111,14 +111,13 @@ jobs:
           tarball="$(find "$pack_dir" -name '*.tgz' -print -quit)"
           test -n "$tarball"
           # CLI tarball sanity check: must contain dist/index.js and stay under 1 MB
-          test "$(stat -c%s "$tarball" 2>/dev/null || stat -f%z "$tarball")" -lt 1048576 \
+          size=$(stat -c%s "$tarball" 2>/dev/null || stat -f%z "$tarball")
+          test "$size" -lt 1048576 \
             || { echo "::error::Tarball exceeds 1 MB — likely a monorepo pack, not CLI"; exit 1; }
           tar -tzf "$tarball" | grep -q '^package/dist/index\.js$' \
             || { echo "::error::Tarball missing package/dist/index.js — not a valid CLI pack"; exit 1; }
-          asset_name="tokenarena-cli-v${{ needs.release.outputs.version }}.tgz"
-          cp "$tarball" "$pack_dir/$asset_name"
-          echo "tarball=$pack_dir/$asset_name" >> "$GITHUB_OUTPUT"
-          echo "asset_name=$asset_name" >> "$GITHUB_OUTPUT"
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+          echo "asset_name=tokenarena-cli-v${{ needs.release.outputs.version }}.tgz" >> "$GITHUB_OUTPUT"
 
       - name: Publish CLI to GitHub Packages
         run: pnpm --filter ./cli publish --no-git-checks
@@ -129,7 +128,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.release.outputs.tag_name }}
-          files: ${{ steps.pack-release.outputs.tarball }}
+          files: ${{ steps.pack-release.outputs.tarball }}|${{ steps.pack-release.outputs.asset_name }}
           fail_on_unmatched_files: true
 
   publish-web:
