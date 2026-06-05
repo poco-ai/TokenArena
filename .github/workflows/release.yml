@@ -207,13 +207,22 @@ jobs:
 
       - name: Extract metadata for Docker
         id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=${{ needs.release.outputs.tag_name }}
-            type=sha,prefix=
-            type=raw,value=latest
+        env:
+          RELEASE_TAG: ${{ needs.release.outputs.tag_name }}
+        run: |
+          set -eux
+          tag="${RELEASE_TAG:-}"
+          if [ -z "$tag" ]; then
+            fallback=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+            if [ -z "$fallback" ]; then
+              version=$(node -e "console.log(require('./cli/package.json').version)")
+              fallback="v${version}"
+            fi
+            tag="$fallback"
+          fi
+          echo "tags=${tag}" >> "$GITHUB_OUTPUT"
+          echo "labels=org.opencontainers.image.version=${tag#v}" >> "$GITHUB_OUTPUT"
+          echo "build_arg_version=${tag#v}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push Web Docker image
         id: build-web
@@ -223,12 +232,13 @@ jobs:
           file: ./web/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          pull: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            NEXT_PUBLIC_APP_VERSION=${{ needs.release.outputs.tag_name }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            NEXT_PUBLIC_APP_VERSION=${{ steps.meta.outputs.build_arg_version }}
+          cache-from: type=gha,scope=tokenarena-web
+          cache-to: type=gha,mode=max,scope=tokenarena-web
 
       - name: Run Trivy vulnerability scan
         uses: aquasecurity/trivy-action@v0.36.0
