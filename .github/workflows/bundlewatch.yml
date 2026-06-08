@@ -51,7 +51,7 @@ jobs:
         run: pnpm --filter ./web size
 
       - name: Upload bundle size to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           flags: bundle
           directory: web/
