@@ -31,7 +31,7 @@
 2. **创建 API Key** — 在 [Settings](https://token.poco-ai.com/zh/settings/cli-keys) 中生成 API key
 3. **下载**
     ```shell
-    npm install -g @poco-ai/tokenarena
+    npm install -g @ihadu/tokenarena
     ```
 4. **初始化 CLI** — 运行 `tokenarena init`，输入 API key
 5. **查看分析** — 打开 [Usage](https://token.poco-ai.com/zh/usage) 页面查看你的 token 用量分析
@@ -41,6 +41,18 @@
 > - **手动同步**：运行 `tokenarena sync`，手动将本地数据上传至 Web 端。
 > - **持续同步**：运行 `tokenarena daemon`，保持 CLI 运行，实现数据定时自动同步（默认每 5 分钟）。
 > - **后台服务（Linux / macOS）**：运行 `tokenarena service setup`，将 daemon 注册为用户级后台服务，登录后自动启动、异常退出自动拉起。
+
+### 离线安装（无需 GitHub 账号）
+
+每次发版都会在 [GitHub Releases](https://github.com/ihadu/TokenArena/releases) 附上 `ihadu-tokenarena-<version>.tgz`，无 GH 账号也能下载：
+
+```bash
+# 1. 浏览器打开 https://github.com/ihadu/TokenArena/releases/latest
+#    下载 ihadu-tokenarena-X.Y.Z.tgz
+# 2. 本地安装
+npm install -g ./ihadu-tokenarena-X.Y.Z.tgz
+tokenarena --version
+```
 
 **后台服务管理（Linux / macOS）**
 

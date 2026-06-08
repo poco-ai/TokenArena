@@ -15,6 +15,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# pack artifacts
+*.tgz
+
 # env files
 .env*
 

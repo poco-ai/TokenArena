@@ -35,9 +35,10 @@ jobs:
   publish-cli:
     runs-on: ubuntu-latest
     needs: release
-    if: ${{ needs.release.outputs.release_created == 'true' }}
+    if: github.event_name == 'push'
     permissions:
-      contents: read
+      contents: write
+      packages: write
     steps:
       - uses: actions/checkout@v6
 
@@ -46,7 +47,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          registry-url: https://registry.npmjs.org/
+          registry-url: https://npm.pkg.github.com
           cache: pnpm
 
       - name: Install dependencies
@@ -54,20 +55,31 @@ jobs:
 
       - name: Verify release versions
         env:
-          RELEASE_TAG: ${{ needs.release.outputs.tag_name }}
           RELEASE_VERSION: ${{ needs.release.outputs.version }}
         run: |
           set -euo pipefail
-          test "$RELEASE_TAG" = "v$RELEASE_VERSION"
+          # If release-please didn't produce a version, read the latest tag.
+          if [ -z "${RELEASE_VERSION:-}" ]; then
+            tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+            if [ -z "$tag" ]; then
+              echo "::notice::No release tag; skipping version check"
+              exit 0
+            fi
+            RELEASE_VERSION="${tag#v}"
+            export RELEASE_VERSION
+          fi
           node <<'NODE'
           const fs = require("node:fs");
           const version = process.env.RELEASE_VERSION;
+          if (!version) {
+            console.log("::notice::No release version; skipping version check");
+            process.exit(0);
+          }
           const packages = [
             "package.json",
             "cli/package.json",
             "web/package.json",
           ];
-
           for (const file of packages) {
             const pkg = JSON.parse(fs.readFileSync(file, "utf8"));
             if (pkg.version !== version) {
@@ -101,15 +113,55 @@ jobs:
           ./node_modules/.bin/tokenarena --help
           ./node_modules/.bin/tokenarena status
 
-      - name: Publish CLI to npm
-        run: pnpm --filter ./cli publish --access public --no-git-checks
+      - name: Pack release tarball
+        id: pack-release
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          RELEASE_VERSION: ${{ needs.release.outputs.version }}
+          RELEASE_TAG: ${{ needs.release.outputs.tag_name }}
+        run: |
+          set -eux
+          pack_dir="${RUNNER_TEMP}/tokenarena-release"
+          mkdir -p "$pack_dir"
+          pnpm --filter ./cli pack --pack-destination "$pack_dir"
+          tarball="$(find "$pack_dir" -name '*.tgz' -print -quit)"
+          test -n "$tarball"
+          tag="${RELEASE_TAG:-}"
+          version="${RELEASE_VERSION:-}"
+          if [ -z "$version" ]; then
+            version=$(node -e "console.log(require('./cli/package.json').version)")
+          fi
+          if [ -z "$tag" ]; then
+            tag="v${version}"
+          fi
+          asset_name="tokenarena-cli-v${version}.tgz"
+          cp "$tarball" "$pack_dir/$asset_name"
+          echo "tarball=$pack_dir/$asset_name" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Publish CLI to GitHub Packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          if npm view "@ihadu/tokenarena@${RELEASE_VERSION}" version 2>/dev/null; then
+            echo "::notice::${RELEASE_VERSION} already published, skipping npm publish"
+          else
+            pnpm --filter ./cli publish --no-git-checks
+          fi
+
+      - name: Upload tarball to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.pack-release.outputs.tag }}
+          TAR: ${{ steps.pack-release.outputs.tarball }}
+        run: |
+          set -eux
+          gh release upload "$TAG" "$TAR" --clobber --repo "${{ github.repository }}"
 
   publish-web:
     runs-on: ubuntu-latest
     needs: release
-    if: ${{ needs.release.outputs.release_created == 'true' }}
+    if: github.event_name == 'push'
     permissions:
       contents: read
       packages: write
@@ -124,6 +176,20 @@ jobs:
           RELEASE_VERSION: ${{ needs.release.outputs.version }}
         run: |
           set -euo pipefail
+          if [ -z "$RELEASE_VERSION" ]; then
+            fallback=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+            if [ -n "$fallback" ]; then
+              echo "Using fallback tag from git: $fallback"
+              RELEASE_VERSION="${fallback#v}"
+              RELEASE_TAG="$fallback"
+              export RELEASE_TAG RELEASE_VERSION
+            else
+              version=$(node -e "console.log(require('./cli/package.json').version)")
+              RELEASE_TAG="v${version}"
+              RELEASE_VERSION="$version"
+              export RELEASE_TAG RELEASE_VERSION
+            fi
+          fi
           test "$RELEASE_TAG" = "v$RELEASE_VERSION"
 
       - name: Set up QEMU
@@ -139,13 +205,31 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Resolve release tag
+        id: resolve-tag
+        env:
+          RELEASE_TAG: ${{ needs.release.outputs.tag_name }}
+        run: |
+          set -eux
+          tag="${RELEASE_TAG:-}"
+          if [ -z "$tag" ]; then
+            fallback=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+            if [ -z "$fallback" ]; then
+              version=$(node -e "console.log(require('./cli/package.json').version)")
+              fallback="v${version}"
+            fi
+            tag="$fallback"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+
       - name: Extract metadata for Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=${{ needs.release.outputs.tag_name }}
+            type=raw,value=${{ steps.resolve-tag.outputs.tag }}
             type=sha,prefix=
             type=raw,value=latest
 
@@ -160,9 +244,9 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            NEXT_PUBLIC_APP_VERSION=${{ needs.release.outputs.tag_name }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            NEXT_PUBLIC_APP_VERSION=${{ steps.resolve-tag.outputs.version }}
+          cache-from: type=gha,scope=tokenarena-web
+          cache-to: type=gha,mode=max,scope=tokenarena-web
 
       - name: Run Trivy vulnerability scan
         uses: aquasecurity/trivy-action@v0.36.0

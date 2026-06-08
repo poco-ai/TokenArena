@@ -175,7 +175,7 @@
     },
     "emptyState": {
       "title": "还没有使用数据",
-      "step2": "安装 CLI：",
+      "step2": "下载并安装 CLI（无需 GitHub 账号）：",
       "copyCommand": "复制命令",
       "step3": "运行下面的指令，并按照提示粘贴 API 密钥：",
       "createFirstKey": "创建第一个 Key"
