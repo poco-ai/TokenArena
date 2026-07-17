@@ -11,10 +11,9 @@ const TOOL_ID = "astrbot";
 const TOOL_NAME = "AstrBot";
 
 function getDefaultDbPath(): string {
-  const envRoot = process.env.ASTRBOT_ROOT?.trim();
-  if (envRoot) {
-    const resolved = resolve(envRoot);
-    return join(resolved, "data", "data_v4.db");
+  const basePath = process.env.ASTRBOT_BASE_PATH?.trim();
+  if (basePath) {
+    return join(resolve(basePath), "data", "data_v4.db");
   }
   const desktop = join(homedir(), ".astrbot", "data", "data_v4.db");
   if (existsSync(desktop)) return desktop;
@@ -62,7 +61,8 @@ function createToolDefinition(dbPath: string): ToolDefinition {
 
 function toSafeNumber(value: unknown): number {
   const numberValue = Number(value);
-  return Number.isFinite(numberValue) ? numberValue : 0;
+  if (!Number.isFinite(numberValue)) return 0;
+  return Math.max(0, numberValue);
 }
 
 function parseUnixSeconds(value: unknown): Date | null {

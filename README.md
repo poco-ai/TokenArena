@@ -44,7 +44,7 @@
 
 > [!NOTE]
 > 使用宿主机 CLI 采集 AstrBot 数据时，请在运行 `tokenarena service setup` 前设置
-> `ASTRBOT_ROOT=/path/to/astrbot`。该目录下应存在 `data/data_v4.db`，生成的后台服务会继承此变量。
+> `ASTRBOT_BASE_PATH=/path/to/astrbot`。该目录下应存在 `data/data_v4.db`，生成的后台服务会继承此变量。
 
 **后台服务管理（Linux / macOS）**
 

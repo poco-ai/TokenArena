@@ -11,7 +11,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { AstrBotParser } from "./astrbot";
 
 const tempDirs: string[] = [];
-const originalAstrBotRoot = process.env.ASTRBOT_ROOT;
+const originalAstrBotBasePath = process.env.ASTRBOT_BASE_PATH;
 
 function makeTempDir(prefix: string): string {
   const dir = mkdtempSync(join(tmpdir(), prefix));
@@ -31,10 +31,10 @@ afterEach(() => {
     rmSync(dir, { recursive: true, force: true });
   }
 
-  if (originalAstrBotRoot === undefined) {
-    delete process.env.ASTRBOT_ROOT;
+  if (originalAstrBotBasePath === undefined) {
+    delete process.env.ASTRBOT_BASE_PATH;
   } else {
-    process.env.ASTRBOT_ROOT = originalAstrBotRoot;
+    process.env.ASTRBOT_BASE_PATH = originalAstrBotBasePath;
   }
 });
 
@@ -75,6 +75,32 @@ describe("AstrBotParser", () => {
     expect(result.sessions).toEqual([]);
   });
 
+  it("clamps negative token counts to zero", async () => {
+    const dbPath = makeDbPath();
+    const parser = new AstrBotParser({
+      dbPath,
+      queryRows: async () => [
+        {
+          provider_model: "gpt-5.4",
+          token_input_other: -10,
+          token_input_cached: -5,
+          token_output: 8,
+          start_time: 1713002400,
+        },
+      ],
+    });
+
+    const result = await parser.parse();
+
+    expect(result.buckets).toHaveLength(1);
+    expect(result.buckets[0]).toMatchObject({
+      inputTokens: 0,
+      cachedTokens: 0,
+      outputTokens: 8,
+      totalTokens: 8,
+    });
+  });
+
   it("returns an empty result when the database does not exist", async () => {
     const parser = new AstrBotParser({
       dbPath: join(makeTempDir("tokenarena-astrbot-missing-"), "missing.db"),
@@ -90,12 +116,12 @@ describe("AstrBotParser", () => {
     expect(parser.isInstalled()).toBe(false);
   });
 
-  it("resolves the database from ASTRBOT_ROOT", () => {
-    const root = makeTempDir("tokenarena-astrbot-root-");
+  it("resolves the database from ASTRBOT_BASE_PATH", () => {
+    const root = makeTempDir("tokenarena-astrbot-base-");
     const dataDir = join(root, "data");
     mkdirSync(dataDir);
     writeFileSync(join(dataDir, "data_v4.db"), "", "utf-8");
-    process.env.ASTRBOT_ROOT = root;
+    process.env.ASTRBOT_BASE_PATH = root;
 
     const parser = new AstrBotParser();
 
