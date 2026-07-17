@@ -1,4 +1,5 @@
 // Import parsers to register them before CLI setup
+import "./parsers/astrbot.js";
 import "./parsers/claude-code.js";
 import "./parsers/codex.js";
 import "./parsers/gsd.js";
