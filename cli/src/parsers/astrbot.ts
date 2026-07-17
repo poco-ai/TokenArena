@@ -62,7 +62,10 @@ interface ProviderStatRow {
   end_time?: unknown;
 }
 
-type SqliteQueryRows = <TRow>(dbPath: string, query: string) => Promise<TRow[]>;
+export type SqliteQueryRows = <TRow>(
+  dbPath: string,
+  query: string,
+) => Promise<TRow[]>;
 
 export interface AstrBotParserOptions {
   dbPath?: string;
@@ -222,11 +225,14 @@ async function readSqliteRows<TRow>(
   return builtinRows ?? readSqliteRowsWithCli<TRow>(dbPath, query);
 }
 
-function readSqliteRowsSafe<TRow>(
+export async function readSqliteRowsWithLockRetry<TRow>(
   dbPath: string,
   query: string,
+  queryRows: SqliteQueryRows = readSqliteRows,
 ): Promise<TRow[]> {
-  return readSqliteRows<TRow>(dbPath, query).catch((err) => {
+  try {
+    return await queryRows<TRow>(dbPath, query);
+  } catch (err) {
     if (isLockError(err)) {
       // Database locked — snapshot and retry (same pattern as kiro.ts)
       const snapshotDir = mkdtempSync(join(tmpdir(), "tokenarena-astrbot-"));
@@ -238,13 +244,13 @@ function readSqliteRowsSafe<TRow>(
           if (existsSync(companion))
             copyFileSync(companion, `${snapshotPath}${suffix}`);
         }
-        return readSqliteRows<TRow>(snapshotPath, query);
+        return await queryRows<TRow>(snapshotPath, query);
       } finally {
         rmSync(snapshotDir, { recursive: true, force: true });
       }
     }
     throw err;
-  });
+  }
 }
 
 // ---- Parser ----
@@ -256,7 +262,7 @@ export class AstrBotParser implements IParser {
 
   constructor(options: AstrBotParserOptions = {}) {
     this.dbPath = options.dbPath || getDefaultDbPath();
-    this.queryRows = options.queryRows || readSqliteRowsSafe;
+    this.queryRows = options.queryRows || readSqliteRowsWithLockRetry;
     this.tool = createToolDefinition(this.dbPath);
   }
 
@@ -290,8 +296,13 @@ export class AstrBotParser implements IParser {
     const sessionEvents: SessionEvent[] = [];
 
     for (const row of rows) {
-      const timestamp = parseUnixSeconds(row.start_time);
-      if (!timestamp) continue;
+      const startTimestamp = parseUnixSeconds(row.start_time);
+      if (!startTimestamp) continue;
+      const parsedEndTimestamp = parseUnixSeconds(row.end_time);
+      const endTimestamp =
+        parsedEndTimestamp && parsedEndTimestamp >= startTimestamp
+          ? parsedEndTimestamp
+          : startTimestamp;
 
       const inputTokens = toSafeNumber(row.token_input_other);
       const cachedTokens = toSafeNumber(row.token_input_cached);
@@ -321,28 +332,37 @@ export class AstrBotParser implements IParser {
         source: TOOL_ID,
         model,
         project: "unknown",
-        timestamp,
+        timestamp: startTimestamp,
         inputTokens,
         outputTokens,
         reasoningTokens: 0,
         cachedTokens,
       });
 
-      // Each request is an assistant turn. AstrBot doesn't expose a separate
-      // user-message table, so we synthesise a user event at the start of
-      // each conversation to let extractSessions compute active time.
+      // Each provider_stats row represents one request. AstrBot does not
+      // expose the corresponding message table here, so synthesize a user
+      // event plus an assistant timing range. The start marker is excluded
+      // from message counts but lets extractSessions preserve active time.
       sessionEvents.push({
         sessionId: conversationId,
         source: TOOL_ID,
         project: "unknown",
-        timestamp,
+        timestamp: startTimestamp,
         role: "user",
       });
       sessionEvents.push({
         sessionId: conversationId,
         source: TOOL_ID,
         project: "unknown",
-        timestamp,
+        timestamp: startTimestamp,
+        role: "assistant",
+        countAsMessage: false,
+      });
+      sessionEvents.push({
+        sessionId: conversationId,
+        source: TOOL_ID,
+        project: "unknown",
+        timestamp: endTimestamp,
         role: "assistant",
       });
     }

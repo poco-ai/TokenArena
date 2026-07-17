@@ -136,4 +136,38 @@ describe("extractSessions", () => {
       },
     ]);
   });
+
+  it("uses timing markers for active time without counting them as messages", () => {
+    const [session] = extractSessions([
+      {
+        sessionId: "s1",
+        source: "astrbot",
+        project: "unknown",
+        timestamp: new Date("2026-03-26T10:00:00.000Z"),
+        role: "user",
+      },
+      {
+        sessionId: "s1",
+        source: "astrbot",
+        project: "unknown",
+        timestamp: new Date("2026-03-26T10:00:00.000Z"),
+        role: "assistant",
+        countAsMessage: false,
+      },
+      {
+        sessionId: "s1",
+        source: "astrbot",
+        project: "unknown",
+        timestamp: new Date("2026-03-26T10:00:05.000Z"),
+        role: "assistant",
+      },
+    ]);
+
+    expect(session).toMatchObject({
+      durationSeconds: 5,
+      activeSeconds: 5,
+      messageCount: 2,
+      userMessageCount: 1,
+    });
+  });
 });

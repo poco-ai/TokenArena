@@ -42,6 +42,11 @@
 > - **持续同步**：运行 `tokenarena daemon`，保持 CLI 运行，实现数据定时自动同步（默认每 5 分钟）。
 > - **后台服务（Linux / macOS）**：运行 `tokenarena service setup`，将 daemon 注册为用户级后台服务，登录后自动启动、异常退出自动拉起。
 
+> [!NOTE]
+> 使用宿主机 CLI 采集 AstrBot 数据时，请在运行 `tokenarena service setup` 前设置
+> `ASTRBOT_ROOT=/path/to/astrbot`。该目录下应存在 `data/data_v4.db`，生成的后台服务会继承此变量。
+> `ASTRBOT_ROOT` 仅供宿主机 CLI 使用，不会传入 TokenArena Web 的 Docker Compose 服务。
+
 **后台服务管理（Linux / macOS）**
 
 ```bash
@@ -163,6 +168,7 @@ git add --renormalize .
 | `POSTGRES_USER` | PostgreSQL 用户名 | `postgres` |
 | `POSTGRES_PASSWORD` | PostgreSQL 密码 | `postgres` |
 | `POSTGRES_DB` | PostgreSQL 数据库名 | `token_arena` |
+| `ASTRBOT_ROOT` | AstrBot 宿主机根目录，仅供 CLI parser 使用 | `/opt/astrbot` |
 | `GITLAB_BASE_URL` | GitLab 实例地址，支持 `gitlab.com` 或自建实例 | `https://gitlab.example.com` |
 | `GITLAB_CLIENT_ID` | GitLab OAuth Application Client ID | `glapp-xxxxx` |
 | `GITLAB_CLIENT_SECRET` | GitLab OAuth Application Client Secret | `secret` |

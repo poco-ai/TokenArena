@@ -24,11 +24,17 @@ describe("getManagedServiceEnvironment", () => {
       getManagedServiceEnvironment({
         PATH: "/custom/bin:/usr/local/bin",
         TOKEN_ARENA_DEV: "1",
+        ASTRBOT_ROOT: "/srv/astrbot",
+        CLAUDE_CONFIG_DIR: "/tmp/claude",
+        CURSOR_CONFIG_DIR: "/tmp/cursor",
         XDG_CONFIG_HOME: "/tmp/config",
       }),
     ).toEqual({
       PATH: "/custom/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin",
       TOKEN_ARENA_DEV: "1",
+      ASTRBOT_ROOT: "/srv/astrbot",
+      CLAUDE_CONFIG_DIR: "/tmp/claude",
+      CURSOR_CONFIG_DIR: "/tmp/cursor",
       XDG_CONFIG_HOME: "/tmp/config",
     });
   });

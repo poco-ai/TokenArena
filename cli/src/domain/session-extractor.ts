@@ -120,7 +120,7 @@ export function extractSessions(
     const userPromptHours = new Array(24).fill(0);
     let userMessageCount = 0;
     for (const event of sessionEvents) {
-      if (event.role === "user") {
+      if (event.role === "user" && event.countAsMessage !== false) {
         userMessageCount++;
         userPromptHours[event.timestamp.getUTCHours()]++;
       }
@@ -171,7 +171,9 @@ export function extractSessions(
       lastMessageAt: last.timestamp.toISOString(),
       durationSeconds,
       activeSeconds,
-      messageCount: sessionEvents.length,
+      messageCount: sessionEvents.filter(
+        (event) => event.countAsMessage !== false,
+      ).length,
       userMessageCount,
       userPromptHours,
       inputTokens,
