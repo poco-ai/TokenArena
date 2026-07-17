@@ -10,21 +10,14 @@ import type { IParser, ToolDefinition } from "./types";
 const TOOL_ID = "astrbot";
 const TOOL_NAME = "AstrBot";
 
-// AstrBot stores data in {root}/data/data_v4.db.
-// Root resolution (mirrors astrbot/core/utils/astrbot_path.py):
-//   1. ASTRBOT_ROOT env var
-//   2. ~/.astrbot (desktop-packaged runtime)
-//   3. cwd (most common for CLI deployments)
 function getDefaultDbPath(): string {
   const envRoot = process.env.ASTRBOT_ROOT?.trim();
   if (envRoot) {
     const resolved = resolve(envRoot);
     return join(resolved, "data", "data_v4.db");
   }
-  // Desktop-packaged runtime default
   const desktop = join(homedir(), ".astrbot", "data", "data_v4.db");
   if (existsSync(desktop)) return desktop;
-  // CLI / source deployment — current working directory
   return join(process.cwd(), "data", "data_v4.db");
 }
 
@@ -72,7 +65,6 @@ function toSafeNumber(value: unknown): number {
   return Number.isFinite(numberValue) ? numberValue : 0;
 }
 
-/** AstrBot stores timestamps as Unix epoch seconds (float). */
 function parseUnixSeconds(value: unknown): Date | null {
   const numberValue = Number(value);
   if (!Number.isFinite(numberValue) || numberValue <= 0) return null;
@@ -87,8 +79,6 @@ function isLockError(err: unknown): boolean {
     /database is locked/i.test(err.message)
   );
 }
-
-// ---- sqlite3 CLI helpers (same pattern as hermes.ts / opencode.ts / kiro.ts) ----
 
 function withSuppressedSqliteWarning<T>(fn: () => Promise<T>): Promise<T> {
   const originalEmitWarning = process.emitWarning;
@@ -228,7 +218,6 @@ async function readSqliteRowsWithLockRetry(
     return await queryRows(dbPath, query);
   } catch (err) {
     if (isLockError(err)) {
-      // Database locked — snapshot and retry (same pattern as kiro.ts)
       const snapshotDir = mkdtempSync(join(tmpdir(), "tokenarena-astrbot-"));
       const snapshotPath = join(snapshotDir, "data_v4.db");
       try {
@@ -246,8 +235,6 @@ async function readSqliteRowsWithLockRetry(
     throw err;
   }
 }
-
-// ---- Parser ----
 
 export class AstrBotParser implements IParser {
   readonly tool: ToolDefinition;

@@ -1,5 +1,3 @@
-# ASTRBOT_ROOT is consumed by the host CLI only and is intentionally not
-# passed into the TokenArena Web container.
 services:
   web:
     image: ghcr.io/poco-ai/tokenarena:latest
