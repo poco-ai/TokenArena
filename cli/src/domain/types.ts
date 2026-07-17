@@ -65,8 +65,6 @@ export interface SessionEvent {
   project: string;
   timestamp: Date;
   role: "user" | "assistant";
-  /** False for synthetic timing markers that are not real messages. */
-  countAsMessage?: boolean;
 }
 
 /**

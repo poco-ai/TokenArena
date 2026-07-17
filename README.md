@@ -168,7 +168,6 @@ git add --renormalize .
 | `POSTGRES_USER` | PostgreSQL 用户名 | `postgres` |
 | `POSTGRES_PASSWORD` | PostgreSQL 密码 | `postgres` |
 | `POSTGRES_DB` | PostgreSQL 数据库名 | `token_arena` |
-| `ASTRBOT_ROOT` | AstrBot 宿主机根目录，仅供 CLI parser 使用 | `/opt/astrbot` |
 | `GITLAB_BASE_URL` | GitLab 实例地址，支持 `gitlab.com` 或自建实例 | `https://gitlab.example.com` |
 | `GITLAB_CLIENT_ID` | GitLab OAuth Application Client ID | `glapp-xxxxx` |
 | `GITLAB_CLIENT_SECRET` | GitLab OAuth Application Client Secret | `secret` |

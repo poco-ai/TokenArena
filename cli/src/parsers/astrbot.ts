@@ -3,12 +3,7 @@ import { copyFileSync, existsSync, mkdtempSync, rmSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { aggregateToBuckets } from "../domain/aggregator";
-import { extractSessions } from "../domain/session-extractor";
-import type {
-  ParseResult,
-  SessionEvent,
-  TokenUsageEntry,
-} from "../domain/types";
+import type { ParseResult, TokenUsageEntry } from "../domain/types";
 import { registerParser } from "./registry";
 import type { IParser, ToolDefinition } from "./types";
 
@@ -34,15 +29,11 @@ function getDefaultDbPath(): string {
 }
 
 const PROVIDER_STATS_QUERY = `SELECT
-  id,
-  agent_type,
-  conversation_id,
   provider_model,
   token_input_other,
   token_input_cached,
   token_output,
-  start_time,
-  end_time
+  start_time
   FROM provider_stats
   WHERE (token_input_other > 0
     OR token_input_cached > 0
@@ -51,23 +42,19 @@ const PROVIDER_STATS_QUERY = `SELECT
   ORDER BY start_time ASC`;
 
 interface ProviderStatRow {
-  id?: unknown;
-  agent_type?: unknown;
-  conversation_id?: unknown;
   provider_model?: unknown;
   token_input_other?: unknown;
   token_input_cached?: unknown;
   token_output?: unknown;
   start_time?: unknown;
-  end_time?: unknown;
 }
 
-export type SqliteQueryRows = <TRow>(
+type SqliteQueryRows = (
   dbPath: string,
   query: string,
-) => Promise<TRow[]>;
+) => Promise<ProviderStatRow[]>;
 
-export interface AstrBotParserOptions {
+interface AstrBotParserOptions {
   dbPath?: string;
   queryRows?: SqliteQueryRows;
 }
@@ -225,13 +212,20 @@ async function readSqliteRows<TRow>(
   return builtinRows ?? readSqliteRowsWithCli<TRow>(dbPath, query);
 }
 
-export async function readSqliteRowsWithLockRetry<TRow>(
+async function readProviderStatRows(
   dbPath: string,
   query: string,
-  queryRows: SqliteQueryRows = readSqliteRows,
-): Promise<TRow[]> {
+): Promise<ProviderStatRow[]> {
+  return readSqliteRows<ProviderStatRow>(dbPath, query);
+}
+
+async function readSqliteRowsWithLockRetry(
+  dbPath: string,
+  query: string,
+  queryRows: SqliteQueryRows,
+): Promise<ProviderStatRow[]> {
   try {
-    return await queryRows<TRow>(dbPath, query);
+    return await queryRows(dbPath, query);
   } catch (err) {
     if (isLockError(err)) {
       // Database locked — snapshot and retry (same pattern as kiro.ts)
@@ -244,7 +238,7 @@ export async function readSqliteRowsWithLockRetry<TRow>(
           if (existsSync(companion))
             copyFileSync(companion, `${snapshotPath}${suffix}`);
         }
-        return await queryRows<TRow>(snapshotPath, query);
+        return await queryRows(snapshotPath, query);
       } finally {
         rmSync(snapshotDir, { recursive: true, force: true });
       }
@@ -262,7 +256,7 @@ export class AstrBotParser implements IParser {
 
   constructor(options: AstrBotParserOptions = {}) {
     this.dbPath = options.dbPath || getDefaultDbPath();
-    this.queryRows = options.queryRows || readSqliteRowsWithLockRetry;
+    this.queryRows = options.queryRows || readProviderStatRows;
     this.tool = createToolDefinition(this.dbPath);
   }
 
@@ -271,38 +265,19 @@ export class AstrBotParser implements IParser {
       return { buckets: [], sessions: [] };
     }
 
-    let rows: ProviderStatRow[];
-    try {
-      rows = await this.queryRows<ProviderStatRow>(
-        this.dbPath,
-        PROVIDER_STATS_QUERY,
-      );
-    } catch (err) {
-      if (
-        err instanceof Error &&
-        typeof err.message === "string" &&
-        err.message.includes("ENOENT")
-      ) {
-        throw new Error(
-          "sqlite3 CLI not found. Install sqlite3 to sync AstrBot data.",
-        );
-      }
-      throw err;
-    }
+    const rows = await readSqliteRowsWithLockRetry(
+      this.dbPath,
+      PROVIDER_STATS_QUERY,
+      this.queryRows,
+    );
 
     if (!rows.length) return { buckets: [], sessions: [] };
 
     const entries: TokenUsageEntry[] = [];
-    const sessionEvents: SessionEvent[] = [];
 
     for (const row of rows) {
-      const startTimestamp = parseUnixSeconds(row.start_time);
-      if (!startTimestamp) continue;
-      const parsedEndTimestamp = parseUnixSeconds(row.end_time);
-      const endTimestamp =
-        parsedEndTimestamp && parsedEndTimestamp >= startTimestamp
-          ? parsedEndTimestamp
-          : startTimestamp;
+      const timestamp = parseUnixSeconds(row.start_time);
+      if (!timestamp) continue;
 
       const inputTokens = toSafeNumber(row.token_input_other);
       const cachedTokens = toSafeNumber(row.token_input_cached);
@@ -317,59 +292,21 @@ export class AstrBotParser implements IParser {
           ? row.provider_model
           : "unknown";
 
-      // Each provider_stats row is one LLM API call — use its id as a unique
-      // reference and conversation_id for session grouping.
-      const conversationId =
-        typeof row.conversation_id === "string" &&
-        row.conversation_id.length > 0
-          ? row.conversation_id
-          : row.id != null
-            ? `orphan-${String(row.id)}`
-            : "unknown";
-
       entries.push({
-        sessionId: conversationId,
         source: TOOL_ID,
         model,
         project: "unknown",
-        timestamp: startTimestamp,
+        timestamp,
         inputTokens,
         outputTokens,
         reasoningTokens: 0,
         cachedTokens,
       });
-
-      // Each provider_stats row represents one request. AstrBot does not
-      // expose the corresponding message table here, so synthesize a user
-      // event plus an assistant timing range. The start marker is excluded
-      // from message counts but lets extractSessions preserve active time.
-      sessionEvents.push({
-        sessionId: conversationId,
-        source: TOOL_ID,
-        project: "unknown",
-        timestamp: startTimestamp,
-        role: "user",
-      });
-      sessionEvents.push({
-        sessionId: conversationId,
-        source: TOOL_ID,
-        project: "unknown",
-        timestamp: startTimestamp,
-        role: "assistant",
-        countAsMessage: false,
-      });
-      sessionEvents.push({
-        sessionId: conversationId,
-        source: TOOL_ID,
-        project: "unknown",
-        timestamp: endTimestamp,
-        role: "assistant",
-      });
     }
 
     return {
       buckets: aggregateToBuckets(entries),
-      sessions: extractSessions(sessionEvents, entries),
+      sessions: [],
     };
   }
 
