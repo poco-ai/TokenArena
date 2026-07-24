@@ -100,7 +100,7 @@ jobs:
             }
 
       - name: Upload CLI coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           files: cli/coverage/lcov.info
           flags: cli
@@ -109,7 +109,7 @@ jobs:
           slug: poco-ai/tokenarena
 
       - name: Upload web coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           files: web/coverage/lcov.info
           flags: web
