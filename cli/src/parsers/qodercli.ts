@@ -1,6 +1,6 @@
 import { existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, join, sep } from "node:path";
+import { basename, join } from "node:path";
 import { aggregateToBuckets } from "../domain/aggregator";
 import { extractSessions } from "../domain/session-extractor";
 import type {
@@ -73,14 +73,21 @@ function toSafeNumber(value: unknown): number {
   return Number.isFinite(numberValue) ? numberValue : 0;
 }
 
+/** Normalize path separators so prefix matching works on Windows and Unix. */
+function normalizeForPrefix(value: string): string {
+  return value.replace(/\\/g, "/").replace(/\/+$/, "");
+}
+
 export function extractQoderProject(
   filePath: string,
   projectsDir: string,
 ): string {
-  const prefix = projectsDir.endsWith(sep) ? projectsDir : projectsDir + sep;
-  if (!filePath.startsWith(prefix)) return "unknown";
-  const relative = filePath.slice(prefix.length);
-  const firstSeg = relative.split(sep)[0];
+  const normalizedFilePath = normalizeForPrefix(filePath);
+  const normalizedProjectsDir = normalizeForPrefix(projectsDir);
+  const prefix = `${normalizedProjectsDir}/`;
+  if (!normalizedFilePath.startsWith(prefix)) return "unknown";
+  const relative = normalizedFilePath.slice(prefix.length);
+  const firstSeg = relative.split("/")[0];
   if (!firstSeg) return "unknown";
   const parts = firstSeg.split("-").filter(Boolean);
   return parts.length > 0 ? (parts[parts.length - 1] ?? "unknown") : "unknown";

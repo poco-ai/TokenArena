@@ -35,6 +35,16 @@ describe("extractQoderProject", () => {
       ),
     ).toBe("TokenArena");
   });
+
+  it("handles Windows-style path separators", () => {
+    const projectsDir = "C:\\Users\\user\\.qoder\\projects";
+    expect(
+      extractQoderProject(
+        `${projectsDir}\\-Users-philfan-i-TokenArena\\sess.jsonl`,
+        projectsDir,
+      ),
+    ).toBe("TokenArena");
+  });
 });
 
 describe("classifyQoderEntrypoint", () => {
