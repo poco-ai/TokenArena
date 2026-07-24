@@ -71,7 +71,7 @@
     "tailwindcss": "^4",
     "tsx": "^4.23.1",
     "typescript": "^6",
-    "vite": "^7.3.3",
+    "vite": "^8.1.5",
     "vitest": "^4.1.10"
   },
   "size-limit": [
