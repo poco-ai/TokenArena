@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.7.0](https://github.com/poco-ai/TokenArena/compare/v0.6.2...v0.7.0) (2026-07-24)
+
+
+### Features
+
+* **cli:** add qodercli credit and Grok Build usage parsers ([67d6969](https://github.com/poco-ai/TokenArena/commit/67d69691a0f76ef0835fb30394e25520afcc149d))
+* **web:** add ModelScope OAuth login ([64e162f](https://github.com/poco-ai/TokenArena/commit/64e162f0beea109da03d9d6c44341cf4ce0d99ae))
+
+
+### Bug Fixes
+
+* **cli:** normalize paths in extractQoderProject for Windows CI ([b8a9492](https://github.com/poco-ai/TokenArena/commit/b8a9492798442ad7f54c9405fd753ac400099b5b))
+
 ## [0.6.2](https://github.com/poco-ai/TokenArena/compare/v0.6.1...v0.6.2) (2026-06-08)
 
 
