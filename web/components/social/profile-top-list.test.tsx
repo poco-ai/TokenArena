@@ -123,9 +123,10 @@ describe("ProfileTopListChartInner", () => {
     expect(
       elements.filter((element) => element.type === LabelList),
     ).toHaveLength(1);
-    expect((charts[0]?.props.data as Array<{ value: number }>)[0]?.value).toBe(
-      1200000,
-    );
+    const chartData = charts[0]?.props.data as
+      | Array<{ value: number }>
+      | undefined;
+    expect(chartData?.[0]?.value).toBe(1200000);
     expect(markup).not.toContain("Claude Code");
     expect(markup).not.toContain("75.0%");
   });

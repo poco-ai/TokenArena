@@ -1,6 +1,11 @@
 "use client";
 
-import { useInView, useMotionValue, useSpring } from "motion/react";
+import {
+  useInView,
+  useMotionValue,
+  useMotionValueEvent,
+  useSpring,
+} from "motion/react";
 import {
   useCallback,
   useEffect,
@@ -100,7 +105,12 @@ export default function CountUp({
     [formatProp, maxDecimals, separator],
   );
 
-  const formatValueStable = useEffectEvent(formatValue);
+  // Keep latest formatter for motion subscriptions without listing it in
+  // effect deps (react-doctor treats useEffectEvent as Effect-only).
+  const formatValueRef = useRef(formatValue);
+  useEffect(() => {
+    formatValueRef.current = formatValue;
+  }, [formatValue]);
 
   const initialText = formatValue(direction === "down" ? to : from);
   const [display, setDisplay] = useState(() => initialText);
@@ -127,13 +137,9 @@ export default function CountUp({
     }
   }, [isInView, startWhen, motionValue, direction, from, to, delay, duration]);
 
-  useEffect(() => {
-    const unsubscribe = springValue.on("change", (latest: number) => {
-      setDisplay(formatValueStable(latest));
-    });
-
-    return () => unsubscribe();
-  }, [springValue]);
+  useMotionValueEvent(springValue, "change", (latest) => {
+    setDisplay(formatValueRef.current(latest));
+  });
 
   return (
     <span className={className} ref={ref}>

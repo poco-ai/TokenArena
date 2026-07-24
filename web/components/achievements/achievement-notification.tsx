@@ -402,13 +402,16 @@ export function AchievementNotification({
                                   })}
                                 </div>
                               </div>
-                              {/* Progress bar */}
+                              {/* Progress bar: scaleX avoids layout thrash from width animation */}
                               <div className="h-1 w-full overflow-hidden bg-muted/80">
                                 <m.div
-                                  className="h-full bg-foreground/80"
-                                  initial={{ width: 0 }}
+                                  className="h-full w-full origin-left bg-foreground/80"
+                                  initial={{ scaleX: 0 }}
                                   animate={{
-                                    width: `${Math.max(achievement.progress.ratio * 100, 4)}%`,
+                                    scaleX: Math.max(
+                                      achievement.progress.ratio,
+                                      0.04,
+                                    ),
                                   }}
                                   transition={{
                                     type: "spring",

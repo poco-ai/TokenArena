@@ -156,7 +156,7 @@ export class CodexParser implements IParser {
           if (obj.type !== "event_msg") continue;
 
           const payload = obj.payload;
-          if (!payload || payload.type !== "token_count") continue;
+          if (payload?.type !== "token_count") continue;
 
           const info = payload.info;
           if (!info) continue;

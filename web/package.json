@@ -16,7 +16,7 @@
     "format:check": "biome format",
     "size": "size-limit",
     "db:seed": "prisma db seed",
-    "react-doctor": "react-doctor . --project token-arena-web --full --offline --fail-on error"
+    "react-doctor": "react-doctor . --scope full --blocking error"
   },
   "dependencies": {
     "@microsoft/clarity": "^1.0.0",
@@ -38,7 +38,7 @@
     "pg": "^8.22.0",
     "postcss": "^8.5.22",
     "postprocessing": "^6.39.3",
-    "radix-ui": "^1.6.5",
+    "radix-ui": "1.4.3",
     "react": "19.2.8",
     "react-day-picker": "^10.0.1",
     "react-dom": "19.2.8",
@@ -58,7 +58,7 @@
     "@size-limit/file": "^12.1.0",
     "@size-limit/time": "^12.1.0",
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^25",
+    "@types/node": "^26",
     "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -71,7 +71,7 @@
     "tailwindcss": "^4",
     "tsx": "^4.23.1",
     "typescript": "^6",
-    "vite": "^7.3.3",
+    "vite": "^8.1.2",
     "vitest": "^4.1.10"
   },
   "size-limit": [
