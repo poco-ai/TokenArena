@@ -14,6 +14,10 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
+        hostname: "g.alicdn.com",
+      },
+      {
+        protocol: "https",
         hostname: "watcha.tos-cn-beijing.volces.com",
       },
     ],

@@ -35,6 +35,17 @@ function ProviderIcon({ providerId }: { providerId: LoginProvider["id"] }) {
           className="shrink-0"
         />
       );
+    case "modelscope":
+      return (
+        <Image
+          src="https://g.alicdn.com/sail-web/maas/2.13.111/favicon/128.ico"
+          alt="ModelScope"
+          width={16}
+          height={16}
+          className="shrink-0"
+          unoptimized
+        />
+      );
     case "watcha":
       return (
         <Image

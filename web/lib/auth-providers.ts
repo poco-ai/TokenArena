@@ -13,6 +13,8 @@ type ProviderEnvName =
   | "GOOGLE_CLIENT_SECRET"
   | "LINUXDO_CLIENT_ID"
   | "LINUXDO_CLIENT_SECRET"
+  | "MODELSCOPE_CLIENT_ID"
+  | "MODELSCOPE_CLIENT_SECRET"
   | "WATCHA_CLIENT_ID"
   | "WATCHA_CLIENT_SECRET";
 
@@ -32,7 +34,7 @@ type SocialProviderDefinition = ProviderBase & {
 };
 
 type OAuth2ProviderDefinition = ProviderBase & {
-  id: "gitlab" | "linuxdo" | "watcha";
+  id: "gitlab" | "linuxdo" | "modelscope" | "watcha";
   kind: "oauth2";
   scopes: string[];
   baseUrl?: ProviderEnvName;
@@ -121,6 +123,41 @@ async function getGitLabUserInfo(tokens: OAuth2Tokens, env = process.env) {
   };
 }
 
+async function getModelScopeUserInfo(tokens: OAuth2Tokens) {
+  const response = await fetch("https://www.modelscope.cn/oauth/userinfo", {
+    headers: {
+      Authorization: `Bearer ${tokens.accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = (await response.json()) as {
+    sub?: string | null;
+    name?: string | null;
+    preferred_username?: string | null;
+    picture?: string | null;
+    email?: string | null;
+    email_verified?: boolean | null;
+  };
+  const id = data.sub?.trim();
+
+  if (!id) {
+    return null;
+  }
+
+  const email = data.email?.trim();
+  return {
+    id,
+    name: data.name || data.preferred_username || "ModelScope User",
+    image: data.picture || undefined,
+    email: email || `${id}@modelscope.local`,
+    emailVerified: Boolean(email && data.email_verified),
+  };
+}
+
 const socialProviderDefinitions: readonly SocialProviderDefinition[] = [
   {
     id: "discord",
@@ -176,6 +213,20 @@ const oauth2ProviderDefinitions: readonly OAuth2ProviderDefinition[] = [
     tokenUrl: "https://connect.linux.do/oauth2/token",
     userInfoUrl: "https://connect.linux.do/api/user",
     scopes: ["read"],
+  },
+  {
+    id: "modelscope",
+    kind: "oauth2",
+    label: "ModelScope",
+    credentials: {
+      clientId: "MODELSCOPE_CLIENT_ID",
+      clientSecret: "MODELSCOPE_CLIENT_SECRET",
+    },
+    authorizationUrl: "https://www.modelscope.cn/oauth/authorize",
+    tokenUrl: "https://www.modelscope.cn/oauth/token",
+    userInfoUrl: "https://www.modelscope.cn/oauth/userinfo",
+    scopes: ["openid", "profile"],
+    getUserInfo: getModelScopeUserInfo,
   },
   {
     id: "watcha",

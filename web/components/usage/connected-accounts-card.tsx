@@ -82,6 +82,17 @@ function ProviderIcon({ providerId }: { providerId: string }): ReactNode {
           className="shrink-0"
         />
       );
+    case "modelscope":
+      return (
+        <Image
+          src="https://g.alicdn.com/sail-web/maas/2.13.111/favicon/128.ico"
+          alt=""
+          width={20}
+          height={20}
+          className="shrink-0"
+          unoptimized
+        />
+      );
     case "watcha":
       return (
         <Image
@@ -103,6 +114,7 @@ const providerLabels: Record<string, string> = {
   gitlab: "GitLab",
   google: "Google",
   linuxdo: "Linux.do",
+  modelscope: "ModelScope",
   watcha: "Watcha",
 };
 

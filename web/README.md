@@ -42,6 +42,8 @@ GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 LINUXDO_CLIENT_ID=
 LINUXDO_CLIENT_SECRET=
+MODELSCOPE_CLIENT_ID=
+MODELSCOPE_CLIENT_SECRET=
 WATCHA_CLIENT_ID=
 WATCHA_CLIENT_SECRET=
 ```
@@ -50,6 +52,13 @@ WATCHA_CLIENT_SECRET=
 
 - `GITLAB_BASE_URL` 支持 `https://gitlab.com` 或你的自建 GitLab 地址
 - GitLab OAuth 回调地址：`http://localhost:3000/api/auth/oauth2/callback/gitlab`
+
+魔搭（ModelScope）OAuth / OIDC 配置：
+
+- 在[魔搭 OAuth 文档](https://www.modelscope.cn/docs/accounts/oauth)所述的「访问令牌 → 互联应用 → 我创建」中创建 Web 应用。
+- 本地回调地址：`http://localhost:3000/api/auth/oauth2/callback/modelscope`
+- 生产回调地址：`https://your-domain.com/api/auth/oauth2/callback/modelscope`
+- 应用需要申请 `openid profile` scopes。
 
 ## 本地运行
 
